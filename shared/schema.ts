@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { pgTable, text, varchar, uuid, timestamp, integer, decimal, boolean, jsonb, pgEnum } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { drizzle } from "drizzle-orm/neon-http";
 
 // Enums
 export const userRoleEnum = pgEnum('user_role', ['admin', 'agent']);
@@ -178,3 +179,15 @@ export const loginSchema = z.object({
 });
 
 export type LoginCredentials = z.infer<typeof loginSchema>;
+
+// Schema object for drizzle
+export const schema = {
+  users,
+  clients,
+  approvals,
+  tasks,
+  inventory,
+  stockRequests,
+  invoices,
+  invoiceItems,
+};

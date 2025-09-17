@@ -19,8 +19,18 @@ import {
   type InvoiceItem,
   type InsertInvoiceItem,
   type InvoiceWithItems,
-  type DashboardMetrics
+  type DashboardMetrics,
+  users,
+  clients,
+  approvals,
+  tasks,
+  inventory,
+  stockRequests,
+  invoices,
+  invoiceItems
 } from "@shared/schema";
+import { db } from "./db";
+import { eq, and, sql, desc } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -70,383 +80,425 @@ export interface IStorage {
   getDashboardMetrics(userId: string, userRole: string): Promise<DashboardMetrics>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User> = new Map();
-  private clients: Map<string, Client> = new Map();
-  private approvals: Map<string, Approval> = new Map();
-  private tasks: Map<string, Task> = new Map();
-  private inventory: Map<string, Inventory> = new Map();
-  private stockRequests: Map<string, StockRequest> = new Map();
-  private invoices: Map<string, Invoice> = new Map();
-  private invoiceItems: Map<string, InvoiceItem> = new Map();
-
+export class DatabaseStorage implements IStorage {
   constructor() {
     this.initializeData();
   }
 
-  private initializeData() {
-    // Create admin user
-    const adminId = randomUUID();
-    this.users.set(adminId, {
-      id: adminId,
-      name: "John Smith",
-      email: "admin@solarflow.com",
-      password: "password123",
-      role: "admin",
-      createdAt: new Date(),
-    });
+  private async initializeData() {
+    try {
+      // Check if admin user exists
+      const existingAdmin = await db.select().from(users).where(eq(users.email, "admin@solarflow.com")).limit(1);
+      
+      if (existingAdmin.length === 0) {
+        // Create admin user
+        await db.insert(users).values({
+          name: "John Smith",
+          email: "admin@solarflow.com",
+          password: "password123",
+          role: "admin",
+        });
 
-    // Create sample agents
-    const agent1Id = randomUUID();
-    const agent2Id = randomUUID();
-    
-    this.users.set(agent1Id, {
-      id: agent1Id,
-      name: "Priya Singh",
-      email: "priya@solarflow.com",
-      password: "password123",
-      role: "agent",
-      createdAt: new Date(),
-    });
+        // Create sample agents
+        await db.insert(users).values([
+          {
+            name: "Priya Singh",
+            email: "priya@solarflow.com",
+            password: "password123",
+            role: "agent",
+          },
+          {
+            name: "Rohit Sharma",
+            email: "rohit@solarflow.com",
+            password: "password123",
+            role: "agent",
+          },
+        ]);
 
-    this.users.set(agent2Id, {
-      id: agent2Id,
-      name: "Rohit Sharma",
-      email: "rohit@solarflow.com",
-      password: "password123",
-      role: "agent",
-      createdAt: new Date(),
-    });
-
-    // Initialize sample inventory
-    const solarPanelId = randomUUID();
-    const inverterId = randomUUID();
-    const batteryId = randomUUID();
-
-    this.inventory.set(solarPanelId, {
-      id: solarPanelId,
-      itemName: "Solar Panel (320W)",
-      description: "High efficiency monocrystalline solar panel",
-      quantity: 25,
-      threshold: 50,
-      unitPrice: "15000.00",
-      updatedAt: new Date(),
-    });
-
-    this.inventory.set(inverterId, {
-      id: inverterId,
-      itemName: "Inverter (5KW)",
-      description: "Grid-tie solar inverter",
-      quantity: 8,
-      threshold: 15,
-      unitPrice: "45000.00",
-      updatedAt: new Date(),
-    });
-
-    this.inventory.set(batteryId, {
-      id: batteryId,
-      itemName: "Lithium Battery (100Ah)",
-      description: "Deep cycle lithium ion battery",
-      quantity: 12,
-      threshold: 20,
-      unitPrice: "25000.00",
-      updatedAt: new Date(),
-    });
+        // Initialize sample inventory
+        await db.insert(inventory).values([
+          {
+            itemName: "Solar Panel (320W)",
+            description: "High efficiency monocrystalline solar panel",
+            quantity: 25,
+            threshold: 50,
+            unitPrice: "15000.00",
+          },
+          {
+            itemName: "Inverter (5KW)",
+            description: "Grid-tie solar inverter",
+            quantity: 8,
+            threshold: 15,
+            unitPrice: "45000.00",
+          },
+          {
+            itemName: "Lithium Battery (100Ah)",
+            description: "Deep cycle lithium ion battery",
+            quantity: 12,
+            threshold: 20,
+            unitPrice: "25000.00",
+          },
+        ]);
+      }
+    } catch (error) {
+      console.error('Error initializing data:', error);
+    }
   }
 
   async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+    const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
+    return result[0];
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(user => user.email === email);
+    const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
+    return result[0];
   }
 
   async createUser(user: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const newUser: User = { 
-      ...user, 
-      id, 
-      createdAt: new Date() 
-    };
-    this.users.set(id, newUser);
-    return newUser;
+    const result = await db.insert(users).values(user).returning();
+    return result[0];
   }
 
   async updateUser(id: string, updates: Partial<InsertUser>): Promise<User | undefined> {
-    const user = this.users.get(id);
-    if (!user) return undefined;
-    
-    const updatedUser = { ...user, ...updates };
-    this.users.set(id, updatedUser);
-    return updatedUser;
+    const result = await db.update(users).set(updates).where(eq(users.id, id)).returning();
+    return result[0];
   }
 
   async getClients(agentId?: string): Promise<ClientWithAgent[]> {
-    let clientList = Array.from(this.clients.values());
-    
-    if (agentId) {
-      clientList = clientList.filter(client => client.assignedAgentId === agentId);
-    }
+    const baseClients = agentId 
+      ? await db.select().from(clients).where(eq(clients.assignedAgentId, agentId))
+      : await db.select().from(clients);
 
-    return clientList.map(client => ({
-      ...client,
-      assignedAgent: client.assignedAgentId ? this.users.get(client.assignedAgentId) : undefined,
-      approvals: Array.from(this.approvals.values()).filter(approval => approval.clientId === client.id),
-      tasks: Array.from(this.tasks.values()).filter(task => task.clientId === client.id),
+    const results = await Promise.all(
+      baseClients.map(async (client) => {
+        // Get assigned agent if exists
+        let assignedAgent = undefined;
+        if (client.assignedAgentId) {
+          const agentResult = await db.select().from(users).where(eq(users.id, client.assignedAgentId)).limit(1);
+          if (agentResult.length > 0) {
+            assignedAgent = agentResult[0];
+          }
+        }
+        
+        return {
+          ...client,
+          assignedAgent,
+        };
+      })
+    );
+    
+    // Get approvals and tasks for each client
+    const clientsWithDetails = await Promise.all(results.map(async (client) => {
+      const clientApprovals = await db.select().from(approvals).where(eq(approvals.clientId, client.id));
+      const clientTasks = await db.select().from(tasks).where(eq(tasks.clientId, client.id));
+      
+      return {
+        ...client,
+        approvals: clientApprovals,
+        tasks: clientTasks,
+      };
     }));
+    
+    return clientsWithDetails;
   }
 
   async getClient(id: string): Promise<ClientWithAgent | undefined> {
-    const client = this.clients.get(id);
-    if (!client) return undefined;
-
+    const clientResult = await db.select().from(clients).where(eq(clients.id, id)).limit(1);
+    
+    if (clientResult.length === 0) return undefined;
+    
+    const client = clientResult[0];
+    
+    // Get assigned agent if exists
+    let assignedAgent = undefined;
+    if (client.assignedAgentId) {
+      const agentResult = await db.select().from(users).where(eq(users.id, client.assignedAgentId)).limit(1);
+      if (agentResult.length > 0) {
+        assignedAgent = agentResult[0];
+      }
+    }
+    
+    const clientApprovals = await db.select().from(approvals).where(eq(approvals.clientId, client.id));
+    const clientTasks = await db.select().from(tasks).where(eq(tasks.clientId, client.id));
+    
     return {
       ...client,
-      assignedAgent: client.assignedAgentId ? this.users.get(client.assignedAgentId) : undefined,
-      approvals: Array.from(this.approvals.values()).filter(approval => approval.clientId === client.id),
-      tasks: Array.from(this.tasks.values()).filter(task => task.clientId === client.id),
+      assignedAgent,
+      approvals: clientApprovals,
+      tasks: clientTasks,
     };
   }
 
   async createClient(client: InsertClient): Promise<Client> {
-    const id = randomUUID();
-    const newClient: Client = { 
-      ...client, 
-      id, 
-      createdAt: new Date() 
-    };
-    this.clients.set(id, newClient);
-    return newClient;
+    const result = await db.insert(clients).values(client).returning();
+    return result[0];
   }
 
   async updateClient(id: string, updates: Partial<InsertClient>): Promise<Client | undefined> {
-    const client = this.clients.get(id);
-    if (!client) return undefined;
-    
-    const updatedClient = { ...client, ...updates };
-    this.clients.set(id, updatedClient);
-    return updatedClient;
+    const result = await db.update(clients).set(updates).where(eq(clients.id, id)).returning();
+    return result[0];
   }
 
   async getApprovals(clientId?: string): Promise<Approval[]> {
-    let approvalList = Array.from(this.approvals.values());
-    
     if (clientId) {
-      approvalList = approvalList.filter(approval => approval.clientId === clientId);
+      return await db.select().from(approvals).where(eq(approvals.clientId, clientId));
     }
-
-    return approvalList;
+    return await db.select().from(approvals);
   }
 
   async getApproval(id: string): Promise<Approval | undefined> {
-    return this.approvals.get(id);
+    const result = await db.select().from(approvals).where(eq(approvals.id, id)).limit(1);
+    return result[0];
   }
 
   async createApproval(approval: InsertApproval): Promise<Approval> {
-    const id = randomUUID();
-    const newApproval: Approval = { 
-      ...approval, 
-      id, 
-      updatedAt: new Date() 
-    };
-    this.approvals.set(id, newApproval);
-    return newApproval;
+    const result = await db.insert(approvals).values(approval).returning();
+    return result[0];
   }
 
   async updateApproval(id: string, updates: Partial<InsertApproval>): Promise<Approval | undefined> {
-    const approval = this.approvals.get(id);
-    if (!approval) return undefined;
-    
-    const updatedApproval = { ...approval, ...updates, updatedAt: new Date() };
-    this.approvals.set(id, updatedApproval);
-    return updatedApproval;
+    const result = await db.update(approvals).set({ ...updates, updatedAt: new Date() }).where(eq(approvals.id, id)).returning();
+    return result[0];
   }
 
   async getTasks(agentId?: string, clientId?: string): Promise<TaskWithClient[]> {
-    let taskList = Array.from(this.tasks.values());
-    
+    // Build filter conditions
+    const conditions = [];
     if (agentId) {
-      taskList = taskList.filter(task => task.assignedAgentId === agentId);
+      conditions.push(eq(tasks.assignedAgentId, agentId));
+    }
+    if (clientId) {
+      conditions.push(eq(tasks.clientId, clientId));
     }
     
-    if (clientId) {
-      taskList = taskList.filter(task => task.clientId === clientId);
-    }
-
-    return taskList.map(task => {
-      const client = this.clients.get(task.clientId);
-      const agent = this.users.get(task.assignedAgentId);
-      
-      return {
-        ...task,
-        client: client!,
-        assignedAgent: agent!,
-      };
-    }).filter(task => task.client && task.assignedAgent);
+    // Get base tasks
+    const baseTasks = conditions.length > 0
+      ? await db.select().from(tasks).where(conditions.length === 1 ? conditions[0] : and(...conditions))
+      : await db.select().from(tasks);
+    
+    // Populate related data
+    const tasksWithDetails = await Promise.all(
+      baseTasks.map(async (task) => {
+        const [clientResult, agentResult] = await Promise.all([
+          db.select().from(clients).where(eq(clients.id, task.clientId)).limit(1),
+          db.select().from(users).where(eq(users.id, task.assignedAgentId)).limit(1),
+        ]);
+        
+        if (clientResult.length === 0 || agentResult.length === 0) {
+          return null;
+        }
+        
+        return {
+          ...task,
+          client: clientResult[0],
+          assignedAgent: agentResult[0],
+        };
+      })
+    );
+    
+    return tasksWithDetails.filter(Boolean) as TaskWithClient[];
   }
 
   async getTask(id: string): Promise<Task | undefined> {
-    return this.tasks.get(id);
+    const result = await db.select().from(tasks).where(eq(tasks.id, id)).limit(1);
+    return result[0];
   }
 
   async createTask(task: InsertTask): Promise<Task> {
-    const id = randomUUID();
-    const newTask: Task = { 
-      ...task, 
-      id, 
-      createdAt: new Date() 
-    };
-    this.tasks.set(id, newTask);
-    return newTask;
+    const result = await db.insert(tasks).values(task).returning();
+    return result[0];
   }
 
   async updateTask(id: string, updates: Partial<InsertTask>): Promise<Task | undefined> {
-    const task = this.tasks.get(id);
-    if (!task) return undefined;
-    
-    const updatedTask = { ...task, ...updates };
-    this.tasks.set(id, updatedTask);
-    return updatedTask;
+    const result = await db.update(tasks).set(updates).where(eq(tasks.id, id)).returning();
+    return result[0];
   }
 
   async getInventory(): Promise<Inventory[]> {
-    return Array.from(this.inventory.values());
+    return await db.select().from(inventory);
   }
 
   async getInventoryItem(id: string): Promise<Inventory | undefined> {
-    return this.inventory.get(id);
+    const result = await db.select().from(inventory).where(eq(inventory.id, id)).limit(1);
+    return result[0];
   }
 
   async createInventoryItem(item: InsertInventory): Promise<Inventory> {
-    const id = randomUUID();
-    const newItem: Inventory = { 
-      ...item, 
-      id, 
-      updatedAt: new Date() 
-    };
-    this.inventory.set(id, newItem);
-    return newItem;
+    const result = await db.insert(inventory).values(item).returning();
+    return result[0];
   }
 
   async updateInventoryItem(id: string, updates: Partial<InsertInventory>): Promise<Inventory | undefined> {
-    const item = this.inventory.get(id);
-    if (!item) return undefined;
-    
-    const updatedItem = { ...item, ...updates, updatedAt: new Date() };
-    this.inventory.set(id, updatedItem);
-    return updatedItem;
+    const result = await db.update(inventory).set({ ...updates, updatedAt: new Date() }).where(eq(inventory.id, id)).returning();
+    return result[0];
   }
 
   async getStockRequests(agentId?: string): Promise<StockRequestWithDetails[]> {
-    let requestList = Array.from(this.stockRequests.values());
+    // Get base stock requests
+    const baseRequests = agentId 
+      ? await db.select().from(stockRequests).where(eq(stockRequests.agentId, agentId))
+      : await db.select().from(stockRequests);
     
-    if (agentId) {
-      requestList = requestList.filter(request => request.agentId === agentId);
-    }
-
-    return requestList.map(request => {
-      const agent = this.users.get(request.agentId);
-      const item = this.inventory.get(request.itemId);
-      const approvedByUser = request.approvedBy ? this.users.get(request.approvedBy) : undefined;
-      
-      return {
-        ...request,
-        agent: agent!,
-        item: item!,
-        approvedByUser,
-      };
-    }).filter(request => request.agent && request.item);
+    // Populate related data
+    const requestsWithDetails = await Promise.all(
+      baseRequests.map(async (request) => {
+        const [agentResult, itemResult] = await Promise.all([
+          db.select().from(users).where(eq(users.id, request.agentId)).limit(1),
+          db.select().from(inventory).where(eq(inventory.id, request.itemId)).limit(1),
+        ]);
+        
+        if (agentResult.length === 0 || itemResult.length === 0) {
+          return null;
+        }
+        
+        let approvedByUser = undefined;
+        if (request.approvedBy) {
+          const approvedByResult = await db.select().from(users).where(eq(users.id, request.approvedBy)).limit(1);
+          approvedByUser = approvedByResult[0];
+        }
+        
+        return {
+          ...request,
+          agent: agentResult[0],
+          item: itemResult[0],
+          approvedByUser,
+        };
+      })
+    );
+    
+    return requestsWithDetails.filter(Boolean) as StockRequestWithDetails[];
   }
 
   async getStockRequest(id: string): Promise<StockRequest | undefined> {
-    return this.stockRequests.get(id);
+    const result = await db.select().from(stockRequests).where(eq(stockRequests.id, id)).limit(1);
+    return result[0];
   }
 
   async createStockRequest(request: InsertStockRequest): Promise<StockRequest> {
-    const id = randomUUID();
-    const newRequest: StockRequest = { 
-      ...request, 
-      id, 
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    this.stockRequests.set(id, newRequest);
-    return newRequest;
+    const result = await db.insert(stockRequests).values(request).returning();
+    return result[0];
   }
 
   async updateStockRequest(id: string, updates: Partial<InsertStockRequest>): Promise<StockRequest | undefined> {
-    const request = this.stockRequests.get(id);
-    if (!request) return undefined;
-    
-    const updatedRequest = { ...request, ...updates, updatedAt: new Date() };
-    this.stockRequests.set(id, updatedRequest);
-    return updatedRequest;
+    const result = await db.update(stockRequests).set({ ...updates, updatedAt: new Date() }).where(eq(stockRequests.id, id)).returning();
+    return result[0];
   }
 
   async getInvoices(clientId?: string): Promise<InvoiceWithItems[]> {
-    let invoiceList = Array.from(this.invoices.values());
+    const invoiceResults = clientId 
+      ? await db.select().from(invoices).where(eq(invoices.clientId, clientId))
+      : await db.select().from(invoices);
     
-    if (clientId) {
-      invoiceList = invoiceList.filter(invoice => invoice.clientId === clientId);
-    }
-
-    return invoiceList.map(invoice => {
-      const client = this.clients.get(invoice.clientId);
-      const items = Array.from(this.invoiceItems.values())
-        .filter(item => item.invoiceId === invoice.id)
-        .map(item => ({
-          ...item,
-          item: this.inventory.get(item.itemId)!,
-        }))
-        .filter(item => item.item);
+    return await Promise.all(invoiceResults.map(async (invoice) => {
+      const clientResult = await db.select().from(clients).where(eq(clients.id, invoice.clientId)).limit(1);
+      const itemsResults = await db
+        .select({
+          id: invoiceItems.id,
+          invoiceId: invoiceItems.invoiceId,
+          itemId: invoiceItems.itemId,
+          quantity: invoiceItems.quantity,
+          unitPrice: invoiceItems.unitPrice,
+          totalPrice: invoiceItems.totalPrice,
+          item: {
+            id: inventory.id,
+            itemName: inventory.itemName,
+            description: inventory.description,
+            quantity: inventory.quantity,
+            threshold: inventory.threshold,
+            unitPrice: inventory.unitPrice,
+            updatedAt: inventory.updatedAt,
+          },
+        })
+        .from(invoiceItems)
+        .leftJoin(inventory, eq(invoiceItems.itemId, inventory.id))
+        .where(eq(invoiceItems.invoiceId, invoice.id));
       
       return {
         ...invoice,
-        client: client!,
-        items,
+        client: clientResult[0],
+        items: itemsResults.map(item => ({
+          id: item.id,
+          invoiceId: item.invoiceId,
+          itemId: item.itemId,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          totalPrice: item.totalPrice,
+          item: item.item && item.item.id ? {
+            id: item.item.id,
+            itemName: item.item.itemName!,
+            description: item.item.description,
+            quantity: item.item.quantity!,
+            threshold: item.item.threshold!,
+            unitPrice: item.item.unitPrice,
+            updatedAt: item.item.updatedAt!,
+          } : undefined!,
+        })),
       };
-    }).filter(invoice => invoice.client);
+    }));
   }
 
   async getInvoice(id: string): Promise<InvoiceWithItems | undefined> {
-    const invoice = this.invoices.get(id);
-    if (!invoice) return undefined;
-
-    const client = this.clients.get(invoice.clientId);
-    if (!client) return undefined;
-
-    const items = Array.from(this.invoiceItems.values())
-      .filter(item => item.invoiceId === invoice.id)
-      .map(item => ({
-        ...item,
-        item: this.inventory.get(item.itemId)!,
-      }))
-      .filter(item => item.item);
+    const invoiceResult = await db.select().from(invoices).where(eq(invoices.id, id)).limit(1);
+    if (invoiceResult.length === 0) return undefined;
+    
+    const invoice = invoiceResult[0];
+    const clientResult = await db.select().from(clients).where(eq(clients.id, invoice.clientId)).limit(1);
+    if (clientResult.length === 0) return undefined;
+    
+    const itemsResults = await db
+      .select({
+        id: invoiceItems.id,
+        invoiceId: invoiceItems.invoiceId,
+        itemId: invoiceItems.itemId,
+        quantity: invoiceItems.quantity,
+        unitPrice: invoiceItems.unitPrice,
+        totalPrice: invoiceItems.totalPrice,
+        item: {
+          id: inventory.id,
+          itemName: inventory.itemName,
+          description: inventory.description,
+          quantity: inventory.quantity,
+          threshold: inventory.threshold,
+          unitPrice: inventory.unitPrice,
+          updatedAt: inventory.updatedAt,
+        },
+      })
+      .from(invoiceItems)
+      .leftJoin(inventory, eq(invoiceItems.itemId, inventory.id))
+      .where(eq(invoiceItems.invoiceId, invoice.id));
 
     return {
       ...invoice,
-      client,
-      items,
+      client: clientResult[0],
+      items: itemsResults.map(item => ({
+        id: item.id,
+        invoiceId: item.invoiceId,
+        itemId: item.itemId,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        totalPrice: item.totalPrice,
+        item: item.item && item.item.id ? {
+          id: item.item.id,
+          itemName: item.item.itemName!,
+          description: item.item.description,
+          quantity: item.item.quantity!,
+          threshold: item.item.threshold!,
+          unitPrice: item.item.unitPrice,
+          updatedAt: item.item.updatedAt!,
+        } : undefined!,
+      })),
     };
   }
 
   async createInvoice(invoice: InsertInvoice): Promise<Invoice> {
-    const id = randomUUID();
-    const newInvoice: Invoice = { 
-      ...invoice, 
-      id, 
-      createdAt: new Date() 
-    };
-    this.invoices.set(id, newInvoice);
-    return newInvoice;
+    const result = await db.insert(invoices).values(invoice).returning();
+    return result[0];
   }
 
   async createInvoiceItem(item: InsertInvoiceItem): Promise<InvoiceItem> {
-    const id = randomUUID();
-    const newItem: InvoiceItem = { ...item, id };
-    this.invoiceItems.set(id, newItem);
-    return newItem;
+    const result = await db.insert(invoiceItems).values(item).returning();
+    return result[0];
   }
 
   async getDashboardMetrics(userId: string, userRole: string): Promise<DashboardMetrics> {
@@ -509,4 +561,4 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
