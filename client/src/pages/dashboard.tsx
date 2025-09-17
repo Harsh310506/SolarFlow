@@ -14,6 +14,10 @@ export default function Dashboard() {
 
   const { data: metrics, isLoading } = useQuery<DashboardMetrics>({
     queryKey: ['/api/dashboard/metrics'],
+    queryFn: async () => {
+      const response = await makeRequest('GET', '/api/dashboard/metrics');
+      return response.json();
+    },
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
@@ -52,7 +56,23 @@ export default function Dashboard() {
       
       <main className="p-6">
         {/* Metrics Cards */}
-        <MetricsCards metrics={metrics!} isLoading={isLoading} />
+        {metrics ? (
+          <MetricsCards metrics={metrics} isLoading={isLoading} />
+        ) : (
+          <MetricsCards 
+            metrics={{
+              totalClients: 0,
+              activeProjects: 0,
+              pendingApprovals: 0,
+              monthlyRevenue: "₹0L",
+              approvalPipeline: [],
+              lowStockItems: [],
+              recentClients: [],
+              pendingTasks: []
+            }} 
+            isLoading={isLoading} 
+          />
+        )}
 
         {/* Main Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
