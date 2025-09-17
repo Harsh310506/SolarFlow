@@ -1,0 +1,233 @@
+This web application will act as a centralized platform for the solar company to manage:
+
+Client information & government approval process.
+
+Agent activities & permissions.
+
+Inventory & stock control.
+
+Finance (quotations, invoices, payments).
+
+Automated reminders & reporting.
+
+👉 The application will use Supabase as the backend database and authentication system, ensuring scalability, real-time sync, and easy integration.
+
+🧩 Core Modules
+1. Authentication & Roles (via Supabase Auth)
+
+Admin Login → Full access to manage clients, stock, agents, finance.
+
+Agent Login → Limited access, only see/manage assigned clients & tasks.
+
+Access Control → Role-based permissions stored in Supabase.
+
+2. Client Management
+
+Add/edit client profiles.
+
+Assign clients to agents.
+
+Upload client documents (stored in Supabase Storage).
+
+Track project status & history.
+
+3. Government Approval Workflow
+
+Each client follows a step-by-step approval pipeline:
+
+Application Submission
+
+Document Verification
+
+Site Inspection
+
+NOC Issuance
+
+Final Installation Clearance
+
+Agent updates progress at each stage.
+
+Uploads official documents/approvals (Supabase Storage).
+
+Status: Pending / In-progress / Approved / Rejected.
+
+Admin dashboard shows real-time tracking for all clients.
+
+4. Agent Module
+
+View assigned clients & projects.
+
+Upload government forms/documents.
+
+Update approval stages.
+
+Add notes & custom tasks.
+
+Receive reminders for pending approvals or payments.
+
+Performance tracking (clients handled, approvals completed).
+
+5. Inventory / Stock Management
+
+Admin adds & updates solar products (panels, batteries, inverters).
+
+Track stock levels with threshold alerts.
+
+Agents request stock → Admin approves.
+
+Stock issue & return logs maintained.
+
+6. Finance & Billing
+
+Generate quotations & invoices (downloadable as PDF).
+
+Link invoices with client projects.
+
+Track payments (advance, installment, balance).
+
+Automated payment reminders (via email/SMS/WhatsApp API).
+
+7. Task & Reminder System
+
+Each project generates auto-tasks (Upload docs, Submit govt form, Schedule inspection).
+
+Agents can add custom reminders.
+
+Notifications sent for pending/overdue tasks.
+
+Admin sees overdue items across all agents.
+
+8. Reporting & Export
+
+Generate reports for:
+
+Client list & progress.
+
+Government approval status.
+
+Stock usage.
+
+Agent performance.
+
+Finance (invoices & payments).
+
+Export as Excel and PDF.
+
+⚙️ Workflow Example
+
+Admin adds a new client → assigns to an Agent.
+
+Agent uploads documents → submits application.
+
+Agent updates approval stages (1–5) with proof uploads.
+
+System sends reminders for pending approvals.
+
+Once approved → Agent requests stock → Admin approves.
+
+Finance module generates invoice → client pays → reminders for pending balance.
+
+Admin & Agent can export reports anytime.
+
+🗄 Supabase Database Design
+Tables
+
+users
+
+id (UUID, PK)
+
+name
+
+email
+
+role (admin, agent)
+
+created_at
+
+clients
+
+id (UUID, PK)
+
+name
+
+contact_info
+
+address
+
+assigned_agent (FK → users.id)
+
+project_status (lead, in-progress, completed)
+
+created_at
+
+approvals
+
+id (UUID, PK)
+
+client_id (FK → clients.id)
+
+step (1–5)
+
+status (pending, approved, rejected)
+
+remarks
+
+document_url (Supabase Storage)
+
+updated_at
+
+tasks
+
+id (UUID, PK)
+
+client_id (FK → clients.id)
+
+assigned_agent (FK → users.id)
+
+description
+
+due_date
+
+status (pending, completed, overdue)
+
+inventory
+
+id (UUID, PK)
+
+item_name
+
+quantity
+
+threshold
+
+updated_at
+
+stock_requests
+
+id (UUID, PK)
+
+agent_id (FK → users.id)
+
+item_id (FK → inventory.id)
+
+quantity_requested
+
+status (pending, approved, denied)
+
+updated_at
+
+invoices
+
+id (UUID, PK)
+
+client_id (FK → clients.id)
+
+total_amount
+
+amount_paid
+
+due_date
+
+status (paid, partial, pending)
+
+pdf_url
