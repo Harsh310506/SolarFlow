@@ -62,8 +62,8 @@ type CreateTaskData = z.infer<typeof createTaskSchema>;
 export default function Tasks() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<TaskWithClient | null>(null);
-  const [filterStatus, setFilterStatus] = useState<string>('');
-  const [filterClient, setFilterClient] = useState<string>('');
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterClient, setFilterClient] = useState<string>('all');
   
   const { user } = useAuth();
   const makeRequest = useAuthenticatedRequest();
@@ -189,8 +189,8 @@ export default function Tasks() {
   };
 
   const filteredTasks = tasks.filter(task => {
-    if (filterStatus && task.status !== filterStatus) return false;
-    if (filterClient && task.clientId !== filterClient) return false;
+    if (filterStatus && filterStatus !== 'all' && task.status !== filterStatus) return false;
+    if (filterClient && filterClient !== 'all' && task.clientId !== filterClient) return false;
     return true;
   });
 
@@ -280,7 +280,7 @@ export default function Tasks() {
               <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Statuses</SelectItem>
+              <SelectItem value="all">All Statuses</SelectItem>
               <SelectItem value="pending">Pending</SelectItem>
               <SelectItem value="completed">Completed</SelectItem>
             </SelectContent>
@@ -291,7 +291,7 @@ export default function Tasks() {
               <SelectValue placeholder="Filter by client" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Clients</SelectItem>
+              <SelectItem value="all">All Clients</SelectItem>
               {clients.map((client) => (
                 <SelectItem key={client.id} value={client.id}>
                   {client.name}
@@ -470,7 +470,8 @@ export default function Tasks() {
                         <Textarea 
                           placeholder="Enter task description" 
                           rows={3} 
-                          {...field} 
+                          {...field}
+                          value={field.value || ''}
                           data-testid="textarea-task-description"
                         />
                       </FormControl>

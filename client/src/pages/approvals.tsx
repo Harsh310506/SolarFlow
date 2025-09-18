@@ -44,7 +44,7 @@ import { queryClient } from '@/lib/queryClient';
 import type { Approval, ClientWithAgent } from '@/types';
 
 export default function Approvals() {
-  const [selectedClient, setSelectedClient] = useState<string>('');
+  const [selectedClient, setSelectedClient] = useState<string>('all');
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const [selectedApproval, setSelectedApproval] = useState<Approval | null>(null);
   const [updateStatus, setUpdateStatus] = useState<string>('');
@@ -59,7 +59,7 @@ export default function Approvals() {
   const { data: approvals = [], isLoading: approvalsLoading } = useQuery<Approval[]>({
     queryKey: ['/api/approvals', selectedClient],
     queryFn: async () => {
-      const url = selectedClient ? `/api/approvals?clientId=${selectedClient}` : '/api/approvals';
+      const url = (selectedClient && selectedClient !== 'all') ? `/api/approvals?clientId=${selectedClient}` : '/api/approvals';
       const response = await fetch(url, {
         headers: {
           'user-id': localStorage.getItem('auth-user') ? JSON.parse(localStorage.getItem('auth-user')!).id : '',
@@ -177,7 +177,7 @@ export default function Approvals() {
                 <SelectValue placeholder="Filter by client" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Clients</SelectItem>
+                <SelectItem value="all">All Clients</SelectItem>
                 {clients.map((client) => (
                   <SelectItem key={client.id} value={client.id}>
                     {client.name}
