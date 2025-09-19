@@ -1,40 +1,38 @@
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Sun } from 'lucide-react';
-import { useAuth } from '@/hooks/use-auth';
-import { loginSchema, type LoginCredentials } from '@/types';
+import { useRouter } from 'next/router';
+
 
 export default function Login() {
-  const [error, setError] = useState<string>('');
-  const { login, isLoading } = useAuth();
+  const [role, setRole] = useState('admin');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
 
-  const form = useForm<LoginCredentials>({
-    resolver: zodResolver(loginSchema),
-    defaultValues: {
-      email: '',
-      password: '',
-    },
-  });
-
-  const handleSubmit = async (data: LoginCredentials) => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setIsLoading(true);
     try {
-      setError('');
-      await login(data);
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role }),
+      });
+      const data = await res.json();
+      if (res.ok && data.redirect) {
+        router.push(data.redirect);
+      } else {
+        setError(data.message || 'Login failed.');
+      }
     } catch (err: any) {
-      setError(err.message || 'Login failed. Please try again.');
+      setError('Login failed. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -50,76 +48,38 @@ export default function Login() {
           </div>
           <CardTitle>Welcome back</CardTitle>
           <CardDescription>
-            Sign in to your account to manage your solar business operations
+            Select your role to access the dashboard
           </CardDescription>
         </CardHeader>
-        
         <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="email"
-                        placeholder="Enter your email"
-                        {...field}
-                        data-testid="input-email"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="password"
-                        placeholder="Enter your password"
-                        {...field}
-                        data-testid="input-password"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              {error && (
-                <Alert variant="destructive" data-testid="alert-login-error">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-              
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={isLoading}
-                data-testid="button-login"
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block mb-2 font-medium">Role</label>
+              <select
+                className="w-full border rounded px-3 py-2"
+                value={role}
+                onChange={e => setRole(e.target.value)}
+                data-testid="select-role"
               >
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Sign In
-              </Button>
-            </form>
-          </Form>
-          
-          <div className="mt-6 p-4 bg-muted rounded-lg">
-            <p className="text-sm text-muted-foreground mb-2">Demo Credentials:</p>
-            <div className="space-y-1 text-sm">
-              <div><strong>Admin:</strong> admin@solarflow.com / password123</div>
-              <div><strong>Agent:</strong> priya@solarflow.com / password123</div>
+                <option value="admin">Admin</option>
+                <option value="agent">Agent</option>
+              </select>
             </div>
-          </div>
+            {error && (
+              <Alert variant="destructive" data-testid="alert-login-error">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={isLoading}
+              data-testid="button-login"
+            >
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Sign In
+            </Button>
+          </form>
         </CardContent>
       </Card>
     </div>
