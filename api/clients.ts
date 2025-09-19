@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { storage } from '../server/storage';
+import { storage } from '../lib/storage';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const userRole = req.headers['user-role'] as string;
