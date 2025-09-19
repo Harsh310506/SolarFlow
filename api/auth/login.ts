@@ -1,7 +1,7 @@
 import { storage } from '../../lib/storage';
 import { loginSchema } from '../../shared/schema';
 
-export default async function handler(req, res) {
+export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
     res.status(405).json({ message: 'Method Not Allowed' });
     return;
@@ -20,6 +20,6 @@ export default async function handler(req, res) {
     const { password: _, ...userWithoutPassword } = user;
     res.json({ user: userWithoutPassword });
   } catch (error) {
-    res.status(400).json({ message: 'Invalid request data', error: error?.message || String(error) });
+    res.status(400).json({ message: 'Invalid request data', error: (error as any)?.message || String(error) });
   }
 }
