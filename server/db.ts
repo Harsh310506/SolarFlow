@@ -16,13 +16,15 @@ if (!databaseUrl) {
   databaseUrl = `postgresql://${PGUSER}:${PGPASSWORD}@${PGHOST}:${PGPORT}/${PGDATABASE}`;
 }
 
+console.log('📊 Database URL configured:', databaseUrl.replace(/:[^:@]*@/, ':***@')); // Hide password in logs
+
 // Create the postgres client with SSL configuration
-// Use SSL prefer instead of require to handle both SSL and non-SSL connections
 export const sql = postgres(databaseUrl, { 
-  ssl: 'require', // Changed to 'require' for Supabase production
+  ssl: 'require', // Required for Supabase production
   max: 10, // Maximum connections
   idle_timeout: 20,
-  connect_timeout: 10
+  connect_timeout: 30, // Increased timeout
+  prepare: false, // Disable prepared statements for better compatibility
 });
 
 // Create the drizzle instance
