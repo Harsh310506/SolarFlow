@@ -16,6 +16,11 @@ if (!databaseUrl) {
   databaseUrl = `postgresql://${PGUSER}:${PGPASSWORD}@${PGHOST}:${PGPORT}/${PGDATABASE}`;
 }
 
+// Clean up the URL in case it has the environment variable name prefix
+if (databaseUrl.startsWith('DATABASE_URL=')) {
+  databaseUrl = databaseUrl.replace('DATABASE_URL=', '');
+}
+
 console.log('📊 Database URL configured:', databaseUrl.replace(/:[^:@]*@/, ':***@')); // Hide password in logs
 
 // Create the postgres client with SSL configuration
