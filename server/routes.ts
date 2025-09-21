@@ -6,21 +6,33 @@ import { loginSchema, insertClientSchema, insertApprovalSchema, insertTaskSchema
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Health check endpoint
+  app.get("/api/health", (req, res) => {
+    res.json({ status: "ok", timestamp: new Date().toISOString() });
+  });
+
   // Authentication routes
   app.post("/api/auth/login", async (req, res) => {
     try {
+      console.log("Login attempt with body:", req.body);
       const { email, password } = loginSchema.parse(req.body);
       
       const user = await storage.getUserByEmail(email);
       if (!user || user.password !== password) {
+        console.log("Invalid credentials for email:", email);
         return res.status(401).json({ message: "Invalid credentials" });
       }
       
       // In a real app, you'd use proper session management
       const { password: _, ...userWithoutPassword } = user;
+      console.log("Login successful for user:", email);
       res.json({ user: userWithoutPassword });
     } catch (error) {
-      res.status(400).json({ message: "Invalid request data" });
+      console.error("Login error:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid request data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Internal server error" });
     }
   });
 
