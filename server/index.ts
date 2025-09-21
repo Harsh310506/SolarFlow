@@ -7,10 +7,11 @@ import { setupVite, serveStatic, log } from "./vite";
 const app = express();
 
 // CORS configuration for production deployment
+  //'http://localhost:3000', // for local development
+  //'http://localhost:5173', // Vite dev server
+  //'http://localhost:5000', // Alternative dev port
 const allowedOrigins = [
-  'http://localhost:3000', // for local development
-  'http://localhost:5173', // Vite dev server
-  'http://localhost:5000', // Alternative dev port
+
   'https://solar-flow-theta.vercel.app', // Your Vercel URL
   process.env.FRONTEND_URL, // Dynamic frontend URL from env
 ].filter((origin): origin is string => Boolean(origin));
