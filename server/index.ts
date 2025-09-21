@@ -7,33 +7,22 @@ const app = express();
 
 // CORS configuration for production deployment
 app.use((req, res, next) => {
-  const allowedOrigins = [
-    'http://localhost:5173', // Development
-    'http://localhost:3000', // Alternative dev port
-    'http://localhost:5000', // Another dev port
-    'https://solar-flow-theta.vercel.app', // Your Vercel domain
-    process.env.FRONTEND_URL, // Production frontend URL from env
-  ].filter(Boolean);
-
+  // Get the origin from the request
   const origin = req.headers.origin;
   
-  console.log('Request origin:', origin);
-  console.log('Allowed origins:', allowedOrigins);
+  // Log the origin for debugging
+  console.log('🌐 Request from origin:', origin);
   
-  // Allow the request if origin is in allowed list or if no origin (same-origin)
-  if (!origin || allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin || '*');
-  } else {
-    // For debugging: temporarily allow all origins in production
-    console.log('Origin not allowed, but allowing for debugging:', origin);
-    res.setHeader('Access-Control-Allow-Origin', origin);
-  }
-  
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, user-id, user-role');
+  // Allow all origins for now (we'll restrict later once it works)
+  res.setHeader('Access-Control-Allow-Origin', origin || '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, user-id, user-role, X-Requested-With');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Max-Age', '86400'); // Cache preflight for 24 hours
   
+  // Handle preflight requests
   if (req.method === 'OPTIONS') {
+    console.log('✅ Handling OPTIONS preflight request from:', origin);
     res.status(200).end();
     return;
   }

@@ -14,18 +14,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication routes
   app.post("/api/auth/login", async (req, res) => {
     try {
-      console.log("Login attempt with body:", req.body);
+      console.log("🔐 Login attempt from origin:", req.headers.origin);
+      console.log("🔐 Login attempt with body:", req.body);
+      console.log("🔐 Request headers:", {
+        'content-type': req.headers['content-type'],
+        'user-agent': req.headers['user-agent'],
+        'origin': req.headers['origin']
+      });
+      
       const { email, password } = loginSchema.parse(req.body);
       
       const user = await storage.getUserByEmail(email);
       if (!user || user.password !== password) {
-        console.log("Invalid credentials for email:", email);
+        console.log("❌ Invalid credentials for email:", email);
         return res.status(401).json({ message: "Invalid credentials" });
       }
       
       // In a real app, you'd use proper session management
       const { password: _, ...userWithoutPassword } = user;
-      console.log("Login successful for user:", email);
+      console.log("✅ Login successful for user:", email);
       res.json({ user: userWithoutPassword });
     } catch (error) {
       console.error("Login error:", error);
