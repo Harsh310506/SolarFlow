@@ -10,12 +10,23 @@ app.use((req, res, next) => {
   const allowedOrigins = [
     'http://localhost:5173', // Development
     'http://localhost:3000', // Alternative dev port
-    process.env.FRONTEND_URL || '', // Production frontend URL
+    'http://localhost:5000', // Another dev port
+    'https://solar-flow-theta.vercel.app', // Your Vercel domain
+    process.env.FRONTEND_URL, // Production frontend URL from env
   ].filter(Boolean);
 
   const origin = req.headers.origin;
+  
+  console.log('Request origin:', origin);
+  console.log('Allowed origins:', allowedOrigins);
+  
+  // Allow the request if origin is in allowed list or if no origin (same-origin)
   if (!origin || allowedOrigins.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin || '*');
+  } else {
+    // For debugging: temporarily allow all origins in production
+    console.log('Origin not allowed, but allowing for debugging:', origin);
+    res.setHeader('Access-Control-Allow-Origin', origin);
   }
   
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
