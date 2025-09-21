@@ -7,8 +7,25 @@ import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Health check endpoint
-  app.get("/api/health", (req, res) => {
-    res.json({ status: "ok", timestamp: new Date().toISOString() });
+  app.get("/api/health", async (req, res) => {
+    try {
+      // Test database connection
+      const adminUser = await storage.getUserByEmail("admin@solarflow.com");
+      res.json({ 
+        status: "ok", 
+        timestamp: new Date().toISOString(),
+        database: adminUser ? "connected" : "no_admin_user",
+        adminExists: !!adminUser
+      });
+    } catch (error) {
+      console.error("Health check database error:", error);
+      res.status(500).json({ 
+        status: "error", 
+        timestamp: new Date().toISOString(),
+        database: "error",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
   });
 
   // Authentication routes
@@ -23,8 +40,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       const { email, password } = loginSchema.parse(req.body);
+      console.log("🔍 Parsed credentials - email:", email);
       
       const user = await storage.getUserByEmail(email);
+      console.log("👤 User lookup result:", user ? "User found" : "User not found");
+      
       if (!user || user.password !== password) {
         console.log("❌ Invalid credentials for email:", email);
         return res.status(401).json({ message: "Invalid credentials" });

@@ -83,16 +83,23 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  private initialized = false;
+
   constructor() {
     this.initializeData();
   }
 
   private async initializeData() {
     try {
+      console.log('DatabaseStorage: Starting data initialization...');
+      
       // Check if admin user exists
       const existingAdmin = await db.select().from(users).where(eq(users.email, "admin@solarflow.com")).limit(1);
+      console.log('DatabaseStorage: Existing admin check result:', existingAdmin.length);
       
       if (existingAdmin.length === 0) {
+        console.log('DatabaseStorage: Creating initial data...');
+        
         // Create admin user
         await db.insert(users).values({
           name: "John Smith",
@@ -141,9 +148,19 @@ export class DatabaseStorage implements IStorage {
             unitPrice: "25000.00",
           },
         ]);
+        console.log('DatabaseStorage: Initial data created successfully');
+      } else {
+        console.log('DatabaseStorage: Admin user already exists, skipping initialization');
       }
+      
+      this.initialized = true;
+      console.log('DatabaseStorage: Initialization complete');
     } catch (error) {
-      console.error('Error initializing data:', error);
+      console.error('DatabaseStorage: Error initializing data:', error);
+      if (error instanceof Error) {
+        console.error('DatabaseStorage: Error details:', error.message);
+        console.error('DatabaseStorage: Error stack:', error.stack);
+      }
     }
   }
 
@@ -153,8 +170,21 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
-    return result[0];
+    try {
+      console.log('DatabaseStorage: Looking up user by email:', email);
+      const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
+      console.log('DatabaseStorage: User lookup result:', result.length > 0 ? 'Found user' : 'No user found');
+      if (result.length > 0) {
+        console.log('DatabaseStorage: Found user with ID:', result[0].id, 'Role:', result[0].role);
+      }
+      return result[0];
+    } catch (error) {
+      console.error('DatabaseStorage: Error in getUserByEmail:', error);
+      if (error instanceof Error) {
+        console.error('DatabaseStorage: getUserByEmail error details:', error.message);
+      }
+      throw error;
+    }
   }
 
   async createUser(user: InsertUser): Promise<User> {
