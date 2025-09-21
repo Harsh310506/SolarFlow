@@ -1,32 +1,32 @@
 import 'dotenv/config';
 import express, { type Request, Response, NextFunction } from "express";
+import cors from "cors";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
 
 // CORS configuration for production deployment
+const allowedOrigins = [
+  'http://localhost:3000', // for local development
+  'http://localhost:5173', // Vite dev server
+  'http://localhost:5000', // Alternative dev port
+  'https://solar-flow-theta.vercel.app', // Your Vercel URL
+  process.env.FRONTEND_URL, // Dynamic frontend URL from env
+].filter((origin): origin is string => Boolean(origin));
+
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'user-id', 'user-role', 'X-Requested-With'],
+}));
+
+// Add logging middleware to track CORS requests
 app.use((req, res, next) => {
-  // Get the origin from the request
   const origin = req.headers.origin;
-  
-  // Log the origin for debugging
   console.log('🌐 Request from origin:', origin);
-  
-  // Allow all origins for now (we'll restrict later once it works)
-  res.setHeader('Access-Control-Allow-Origin', origin || '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, user-id, user-role, X-Requested-With');
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Max-Age', '86400'); // Cache preflight for 24 hours
-  
-  // Handle preflight requests
-  if (req.method === 'OPTIONS') {
-    console.log('✅ Handling OPTIONS preflight request from:', origin);
-    res.status(200).end();
-    return;
-  }
-  
+  console.log('🔧 Allowed origins:', allowedOrigins);
   next();
 });
 
