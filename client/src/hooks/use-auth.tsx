@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { AuthState, AuthUser, LoginCredentials } from '@/types';
 import { apiRequest } from '@/lib/queryClient';
+import { getApiUrl } from '@/lib/config';
 
 interface AuthContextType extends AuthState {
   login: (credentials: LoginCredentials) => Promise<void>;
@@ -97,7 +98,8 @@ export function useAuthenticatedRequest() {
       throw new Error('User not authenticated');
     }
     
-    const response = await fetch(url, {
+    const fullUrl = getApiUrl(url);
+    const response = await fetch(fullUrl, {
       method,
       headers: {
         'Content-Type': 'application/json',

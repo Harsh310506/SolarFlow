@@ -1,3 +1,5 @@
+import 'dotenv/config';
+
 import { 
   type User, 
   type InsertUser, 

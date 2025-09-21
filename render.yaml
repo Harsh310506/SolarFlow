@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: solarflowpro-backend
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false # You'll need to set this manually in Render dashboard
+      - key: SESSION_SECRET
+        generateValue: true # Render will generate a secure random value
+      - key: PORT
+        value: 10000 # Render's default port
